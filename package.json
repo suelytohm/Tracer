@@ -1,0 +1,30 @@
+{
+  "name": "tracer",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/suelytohm/Tracer.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/suelytohm/Tracer/issues"
+  },
+  "homepage": "https://github.com/suelytohm/Tracer#readme",
+  "dependencies": {
+    "body-parse": "^0.1.0",
+    "cheerio": "^1.0.0-rc.10",
+    "cors": "^2.8.5",
+    "express": "^4.17.3",
+    "mysql": "^2.18.1",
+    "node-cron": "^3.0.0",
+    "request": "^2.88.2",
+    "requestify": "^0.2.5"
+  }
+}
