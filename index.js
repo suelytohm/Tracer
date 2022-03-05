@@ -29,15 +29,22 @@ app.set('view engine', 'html');
  */
 
 
-app.get('/u', (req, res) => {
-    pegarUsers();
+ app.get('/u', async (req, res) => {
+    const usuarios = await pegarUsers();
+
+    usuarios.forEach(user => { 
+        console.log(user.nome) 
+    })
+
+
+    res.json(usuarios);
 })
 
 
 function pegarUsers() {
-    let users = require(execSQLQuery('SELECT * FROM tracer_usuarios', "return"))
-    console.log(users.nome);
+    return connectionBanco("SELECT * FROM tracer_usuarios");
 }
+
 
 
 app.post('/clientes', (req, res) =>{
@@ -49,7 +56,7 @@ app.post('/clientes', (req, res) =>{
     const plano = req.body.plano.substring(0,1);
     const ativo = req.body.ativo.substring(0,1);
 
-    execSQLQuery(`INSERT INTO tracer_usuarios(nome, cpf, email, senha, telefone, plano, ativo) VALUES('${nome}','${cpf}', '${email}', '${senha}', '${telefone}', '${plano}', '${ativo}');`, res);
+    connectionBanco(`INSERT INTO tracer_usuarios(nome, cpf, email, senha, telefone, plano, ativo) VALUES('${nome}','${cpf}', '${email}', '${senha}', '${telefone}', '${plano}', '${ativo}');`);
 
 });
 
@@ -60,8 +67,21 @@ app.post('/link', (req, res) => {
     let idUser = req.body.idUser;
     let link = req.body.link;
     
-    execSQLQuery(`INSERT INTO tracer_links(idUser, link, dataCriacao, statusCode) VALUES('${idUser}','${link}', curdate(), 1);`, res);
+    connectionBanco(`INSERT INTO tracer_links(idUser, link, dataCriacao, statusCode) VALUES('${idUser}','${link}', curdate(), 1);`);
 })
+
+app.get('/links', async (req, res) => {
+    let linkUsers = [];
+    const links = await pegarLinks();
+
+    links.forEach(results => { 
+        linkUsers.push(results.link)
+        console.log(results.link) 
+    })
+
+    res.json(links);
+})
+
 
 
 
@@ -96,19 +116,33 @@ app.post('/verificarLink', (req, res) => {
 })
 
 
-function monitorar(idUser, link){
+async function monitorar(){
     
-    let status = "";
+    let idUser = 1;
+    let linkUsers = [];
 
-    request(link, function (error, response, html) { 
-        if (!error && response.statusCode == 200) { 
-            status = "ok"
-        } else {
-            status = "Erro";
-        }
-    });
 
-    historicoMonitoramento(idUser, link, status);
+    const links = await pegarLinks();
+
+    links.forEach(results => { 
+        linkUsers.push(results.link)
+
+        request(results.link, function (error, response, html) { 
+            if (!error && response.statusCode == 200) { 
+                historicoMonitoramento(results.idUser, results.link, "ok");
+            } else {
+                historicoMonitoramento(results.idUser, results.link, "Erro");
+            }
+        });
+    })
+
+    linkUsers.map((function(item){
+        setTimeout(() =>{
+            console.log(item);
+        }, 1000)
+    }))
+
+
 
 }
 
@@ -122,74 +156,62 @@ function historicoMonitoramento(idUser, link, status){
 
     }
     
-    execSQLQuery(`INSERT INTO tracer_links_historico(idUser, link, dataVerificacao, horaVerificacao, status) VALUES('${idUser}','${link}', curdate(), now(), '${status}');`, "silent");
+    connectionBanco(`INSERT INTO tracer_links_historico(idUser, link, dataVerificacao, horaVerificacao, status) VALUES('${idUser}','${link}', curdate(), now(), '${status}');`);
 
 }
 
 
 
 
+function pegarLinks() {
+    return connectionBanco("SELECT * FROM tracer_links");
+}
 
 
-function execSQLQuery(sqlQry, res){
-    const connection = mysql.createConnection({
-      host     : 'sql10.freemysqlhosting.net',
-      port     : 3306,
-      user     : 'sql10450242',
-      password : 'uVxfyAa5ic',
-      database : 'sql10450242'
-    });
-  
-    if(res == "return"){
-        connection.query(sqlQry, function(error, results, fields){
-            if(error) 
-              res.json(error);
-            else
-              res.json(results);
-            connection.end();
-            console.log('executou!');
+
+
+
+function connectionBanco(sqlQry){
+    return new Promise((resolve, reject) => {
+
+        const connection = mysql.createConnection({
+            host     : 'sql10.freemysqlhosting.net',
+            port     : 3306,
+            user     : 'sql10450242',
+            password : 'uVxfyAa5ic',
+            database : 'sql10450242'
+          });
+
+          connection.query(sqlQry, function(error, results, fields){
+            if(error) {
+                console.log("erro");
+
+                reject(
+                    error
+                )                
+            }
+            else{
+                console.log("ok");
+                resolve(
+                    results
+                )
+                connection.end();
+                console.log('executou!');
+            }
+              
         });
-    }else if(res == "silent"){
-        connection.query(sqlQry, function(error, results, fields){
-
-            connection.end();
-            console.log('executou!');
-        });        
-
-    }else{
-        connection.query(sqlQry, function(error, results, fields){
-            if(error) 
-              res.json(error);
-            else
-              res.json(results);
-            connection.end();
-            console.log('executou!');
-        });
-    }
-
-
-
-
-    connection.query('SELECT * from tracer_links_historico', function (error, results, fields) {
-        if (error) throw error;
-        // console.log('The solution is: ', results[0].tracer_links_historico);
-        console.log("results: " + results.data); // results contains rows returned by server
-        console.log("fields: " + fields);
-      });
-
-
-
-
-
-  }
+    })
+}
 
   
 app.listen(port, (erro) =>{
     if(!erro){
         console.log("Server rodando na porta " + port);
 
+        monitorar();
+
         setInterval(function() {
-            monitorar(1,"https://americanas.com.br");
+            monitorar();
             console.log("Monitorando");
             
         }, 1800000); // 1800000 (MEIA HORA)
