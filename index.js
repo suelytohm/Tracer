@@ -19,13 +19,19 @@ app.set('view engine', 'html');
 
 
 /**
+ * -------------- USER --------------
+ * 
  * ✔ Cadastro Usuário
  * Login
  * Verificar se Usuário está ativo
- * ✔ Salvar os links do user
+ * 
+ * -------------- LINK --------------
+ * 
+ * ✔ Salvar os links do usuário
  * ✔ Ver se o site está online
+ * ✔ Automatizar as verificações (30 min)
  * Verificar alterações no Checkout
- * ✔ Automatizar as verificações (verificar a cada meia hora)
+ * 
  */
 
 
@@ -121,6 +127,7 @@ async function monitorar(){
     let idUser = 1;
     let linkUsers = [];
 
+    console.log("Monitoramento Iniciado");
 
     const links = await pegarLinks();
 
@@ -136,13 +143,7 @@ async function monitorar(){
         });
     })
 
-    linkUsers.map((function(item){
-        setTimeout(() =>{
-            console.log(item);
-        }, 1000)
-    }))
-
-
+    console.log("Verificação Realizada!")
 
 }
 
@@ -191,12 +192,10 @@ function connectionBanco(sqlQry){
                 )                
             }
             else{
-                console.log("ok");
                 resolve(
                     results
                 )
                 connection.end();
-                console.log('executou!');
             }
               
         });
@@ -212,7 +211,6 @@ app.listen(port, (erro) =>{
 
         setInterval(function() {
             monitorar();
-            console.log("Monitorando");
             
         }, 1800000); // 1800000 (MEIA HORA)
     }else{
