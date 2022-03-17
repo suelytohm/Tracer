@@ -1,14 +1,13 @@
 const express = require('express');
 const app = express();
 const cors = require('cors');
-const cheerio = require('cheerio')
 const bodyParser = require('body-parser');
 const port = process.env.PORT || 3000;
 const mysql = require('mysql');
+const axios = require('axios')
 
-const cron = require('node-cron');
+const cheerio = require('cheerio')
 
-const request = require('request'); 
 
 
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -73,7 +72,8 @@ app.post('/link', (req, res) => {
     let idUser = req.body.idUser;
     let link = req.body.link;
     
-    connectionBanco(`INSERT INTO tracer_links(idUser, link, dataCriacao, statusCode) VALUES('${idUser}','${link}', curdate(), 1);`);
+    connectionBanco(`INSERT INTO tracer_links(idUser, link, dataCriacao, statusCode) VALUES('${idUser}','${link}', curdate(), 1);`)
+    
 })
 
 app.get('/links', async (req, res) => {
@@ -97,50 +97,35 @@ app.post('/verificarLink', (req, res) => {
     let idUser = req.body.idUser;
     let link = req.body.link;
 
-    request(link, function (error, response, html) { 
-        if (!error && response.statusCode == 200) { 
 
-            historicoMonitoramento(idUser, link, "ok");
-
-            return res.status(response.statusCode).json(
-                {
-                    "idUser": idUser,
-                    "link": link,
-                    "status": response.statusCode,
-                    "message": "ok"
-                })
-        } else {
-            
-            historicoMonitoramento(idUser, link, "Erro");
-
-            return res.status(500).json(
-                {
-                    "message": "Erro",
-                })
-        }
-    });
+    axios.get(link)
+    .then(function (response) {
+        historicoMonitoramento(idUser, link, "ok");
+        return res.status(response.status).json(response)
+    })
+    .catch(function (err) {
+        historicoMonitoramento(idUser, link, "Erro");
+        console.log("Entrou com erro")
+        return res.status(500).json(err)
+    })
 })
 
 
 async function monitorar(){
-    
-    let idUser = 1;
-    let linkUsers = [];
 
     console.log("Monitoramento Iniciado");
 
     const links = await pegarLinks();
 
     links.forEach(results => { 
-        linkUsers.push(results.link)
 
-        request(results.link, function (error, response, html) { 
-            if (!error && response.statusCode == 200) { 
-                historicoMonitoramento(results.idUser, results.link, "ok");
-            } else {
-                historicoMonitoramento(results.idUser, results.link, "Erro");
-            }
-        });
+        axios.get(results.link)
+        .then(function (response) {
+            historicoMonitoramento(results.idUser, results.link, "ok");    
+        })
+        .catch(function (err) {
+            historicoMonitoramento(results.idUser, results.link, "Erro");
+        })
     })
 
     console.log("Verificação Realizada!")
@@ -150,11 +135,9 @@ async function monitorar(){
 
 function historicoMonitoramento(idUser, link, status){
 
-    if(status == "ok"){
+    if(status !== "ok"){
 
-    }else{
         // notificarUsuario(idUser, link, status);
-
     }
     
     connectionBanco(`INSERT INTO tracer_links_historico(idUser, link, dataVerificacao, horaVerificacao, status) VALUES('${idUser}','${link}', curdate(), now(), '${status}');`);
@@ -165,7 +148,7 @@ function historicoMonitoramento(idUser, link, status){
 
 
 function pegarLinks() {
-    return connectionBanco("SELECT * FROM tracer_links");
+    return connectionBanco("SELECT * FROM tracer_links WHERE ativo = 'S';");
 }
 
 
@@ -192,6 +175,7 @@ function connectionBanco(sqlQry){
                 )                
             }
             else{
+                console.log(results);
                 resolve(
                     results
                 )
