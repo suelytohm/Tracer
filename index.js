@@ -34,7 +34,7 @@ app.set('view engine', 'html');
  */
 
 
- app.get('/u', async (req, res) => {
+app.get('/u', async (req, res) => {
     const usuarios = await pegarUsers();
 
     usuarios.forEach(user => { 
@@ -46,13 +46,8 @@ app.set('view engine', 'html');
 })
 
 
-function pegarUsers() {
-    return connectionBanco("SELECT * FROM tracer_usuarios");
-}
 
-
-
-app.post('/clientes', (req, res) =>{
+app.post('/clientes', async (req, res) =>{
     const nome = req.body.nome.substring(0,150);
     const cpf = req.body.cpf.substring(0,11);
     const email = req.body.email.substring(0,100);
@@ -61,18 +56,23 @@ app.post('/clientes', (req, res) =>{
     const plano = req.body.plano.substring(0,1);
     const ativo = req.body.ativo.substring(0,1);
 
-    connectionBanco(`INSERT INTO tracer_usuarios(nome, cpf, email, senha, telefone, plano, ativo) VALUES('${nome}','${cpf}', '${email}', '${senha}', '${telefone}', '${plano}', '${ativo}');`);
+    const salvarClientes = await salvarClient(nome, cpf, email, senha, telefone, plano, ativo);
+
+    res.json(salvarClientes);
+
 
 });
 
 
 /** Cadastrar Link */
-app.post('/link', (req, res) => {
+app.post('/link', async (req, res) => {
 
     let idUser = req.body.idUser;
     let link = req.body.link;
     
-    connectionBanco(`INSERT INTO tracer_links(idUser, link, dataCriacao, statusCode) VALUES('${idUser}','${link}', curdate(), 1);`)
+    const salvar = await salvarLinks(idUser, link);
+
+    res.json(salvar);
     
 })
 
@@ -145,15 +145,23 @@ function historicoMonitoramento(idUser, link, status){
 }
 
 
-
+function pegarUsers() {
+    return connectionBanco("SELECT * FROM tracer_usuarios");
+}
 
 function pegarLinks() {
     return connectionBanco("SELECT * FROM tracer_links WHERE ativo = 'S';");
 }
 
 
+function salvarLinks(idUsuario, link) {
+    return connectionBanco(`INSERT INTO tracer_links(idUser, link, dataCriacao, statusCode) VALUES('${idUsuario}','${link}', curdate(), 1);`);
+}
 
 
+function salvarClient(nome, cpf, email, senha, telefone, plano, ativo){
+    return connectionBanco(`INSERT INTO tracer_usuarios(nome, cpf, email, senha, telefone, plano, ativo) VALUES('${nome}','${cpf}', '${email}', '${senha}', '${telefone}', '${plano}', '${ativo}');`);
+}
 
 function connectionBanco(sqlQry){
     return new Promise((resolve, reject) => {
