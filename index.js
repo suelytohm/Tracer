@@ -8,8 +8,6 @@ const axios = require('axios')
 
 const cheerio = require('cheerio')
 
-
-
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
@@ -34,7 +32,7 @@ app.set('view engine', 'html');
  */
 
 
-app.get('/u', async (req, res) => {
+app.get('/usuarios', async (req, res) => {
     const usuarios = await pegarUsers();
 
     usuarios.forEach(user => { 
@@ -70,7 +68,7 @@ app.post('/link', async (req, res) => {
     let idUser = req.body.idUser;
     let link = req.body.link;
     
-    const salvar = await salvarLinks(idUser, link);
+    let salvar = await salvarLinks(idUser, link);
 
     res.json(salvar);
     
@@ -90,25 +88,32 @@ app.get('/links', async (req, res) => {
 
 
 
+app.get('/verificar', async (req, res) => {
+    let resposta = await monitorar();
+
+    if(resposta === null) {
+        return res.status(404).json({"message": "Erro"})
+    }
+    console.log(resposta)
+    res.json(resposta)
+
+})
+
 
 /** Verificar site online */
-app.post('/verificarLink', (req, res) => {
+app.post('/verificarLink', async (req, res) => {
 
     let idUser = req.body.idUser;
     let link = req.body.link;
 
+    console.log(idUser, link, "VERIFICANDO");
 
-    axios.get(link)
-    .then(function (response) {
-        historicoMonitoramento(idUser, link, "ok");
-        return res.status(response.status).json(response)
-    })
-    .catch(function (err) {
-        historicoMonitoramento(idUser, link, "Erro");
-        console.log("Entrou com erro")
-        return res.status(500).json(err)
-    })
+    let linksVerificados = await verificarLink(idUser, link);
+    
+    res.json(linksVerificados)
 })
+
+
 
 
 async function monitorar(){
@@ -121,10 +126,13 @@ async function monitorar(){
 
         axios.get(results.link)
         .then(function (response) {
-            historicoMonitoramento(results.idUser, results.link, "ok");    
+            historicoMonitoramento(results.idUser, results.link, "ok");
+            return response    
         })
         .catch(function (err) {
             historicoMonitoramento(results.idUser, results.link, "Erro");
+            return err    
+
         })
     })
 
@@ -161,6 +169,21 @@ function salvarLinks(idUsuario, link) {
 
 function salvarClient(nome, cpf, email, senha, telefone, plano, ativo){
     return connectionBanco(`INSERT INTO tracer_usuarios(nome, cpf, email, senha, telefone, plano, ativo) VALUES('${nome}','${cpf}', '${email}', '${senha}', '${telefone}', '${plano}', '${ativo}');`);
+}
+
+async function verificarLink(idUser, link){
+    let resposta = await axios.get(link)
+    .then(function (response) {
+        historicoMonitoramento(idUser, link, "ok");
+        return response
+    })
+    .catch(function (err) {
+        historicoMonitoramento(idUser, link, "Erro");
+        return err
+    })
+
+    return resposta;
+        
 }
 
 function connectionBanco(sqlQry){
